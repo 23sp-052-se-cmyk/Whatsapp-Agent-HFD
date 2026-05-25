@@ -426,7 +426,7 @@ async function generateAiPreviewReply(
 }
 
 type AiProvider = {
-  name: 'groq' | 'openai';
+  name: 'groq';
   apiKey: string;
   baseUrl: string;
   model: string;
@@ -434,24 +434,14 @@ type AiProvider = {
 
 function getAiProvider(config: ConfigService): AiProvider | null {
   const groqKey = getEnvValue(config, 'GROQ_API_KEY');
-  if (groqKey) {
-    return {
-      name: 'groq',
-      apiKey: groqKey,
-      baseUrl:
-        getEnvValue(config, 'GROQ_BASE_URL') || 'https://api.groq.com/openai/v1',
-      model:
-        getEnvValue(config, 'GROQ_MODEL') || 'llama-3.3-70b-versatile',
-    };
-  }
-
-  const openAiKey = getEnvValue(config, 'OPENAI_API_KEY');
-  if (!openAiKey) return null;
+  if (!groqKey) return null;
   return {
-    name: 'openai',
-    apiKey: openAiKey,
-    baseUrl: getEnvValue(config, 'OPENAI_BASE_URL') || 'https://api.openai.com/v1',
-    model: getEnvValue(config, 'OPENAI_MODEL') || 'gpt-4o-mini',
+    name: 'groq',
+    apiKey: groqKey,
+    baseUrl:
+      getEnvValue(config, 'GROQ_BASE_URL') || 'https://api.groq.com/openai/v1',
+    model:
+      getEnvValue(config, 'GROQ_MODEL') || 'llama-3.3-70b-versatile',
   };
 }
 

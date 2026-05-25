@@ -151,10 +151,12 @@ async function extractTextFromFile(
 }
 
 async function extractScannedPdfText(parser: PDFParse, config: ConfigService) {
-  const apiKey = getEnvValue(config, 'OPENAI_API_KEY');
+  const apiKey = getEnvValue(config, 'GROQ_VISION_API_KEY') || getEnvValue(config, 'GROQ_API_KEY');
   if (!apiKey) return '';
 
-  const model = getEnvValue(config, 'OPENAI_VISION_MODEL') || 'gpt-4o-mini';
+  const model =
+    getEnvValue(config, 'GROQ_VISION_MODEL') || 'meta-llama/llama-4-scout-17b-16e-instruct';
+  const baseUrl = getEnvValue(config, 'GROQ_BASE_URL') || 'https://api.groq.com/openai/v1';
   const screenshotResult = await parser.getScreenshot({
     first: 5,
     desiredWidth: 1400,
@@ -164,7 +166,7 @@ async function extractScannedPdfText(parser: PDFParse, config: ConfigService) {
 
   const pageTexts: string[] = [];
   for (const page of screenshotResult.pages) {
-    const response = await fetch(`${getEnvValue(config, 'OPENAI_BASE_URL') || 'https://api.openai.com/v1'}/chat/completions`, {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,

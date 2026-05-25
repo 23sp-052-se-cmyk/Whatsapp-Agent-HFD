@@ -58,7 +58,6 @@ export class AutoReplyService implements OnModuleInit, OnModuleDestroy {
   private async handleInbound(payload: string) {
     const event = JSON.parse(payload) as InboundMessageEvent;
     const inboundText = await this.getInboundText(event.content);
-    if (!inboundText) return;
 
     const [channel] = await db
       .select()
@@ -69,6 +68,8 @@ export class AutoReplyService implements OnModuleInit, OnModuleDestroy {
 
     const contact = await this.getOrCreateContact(event);
     const conversation = await this.getOrCreateConversation(event, contact.id);
+    const voiceNotUnderstood =
+      event.content.kind === 'audio' && !inboundText;
 
     const [existingInbound] = event.externalMessageId
       ? await db
@@ -90,8 +91,8 @@ export class AutoReplyService implements OnModuleInit, OnModuleDestroy {
         conversationId: conversation.id,
         direction: 'inbound',
         type: event.content.kind === 'audio' ? 'audio' : 'text',
-        body: inboundText,
-        transcript: event.content.kind === 'audio' ? inboundText : null,
+        body: inboundText || (voiceNotUnderstood ? '[voice note not understood]' : ''),
+        transcript: event.content.kind === 'audio' ? inboundText || null : null,
         waMessageId: event.externalMessageId || null,
         status: 'delivered',
         createdAt: new Date(event.receivedAt),
@@ -105,12 +106,14 @@ export class AutoReplyService implements OnModuleInit, OnModuleDestroy {
 
     if (conversation.aiMode !== 'auto' || conversation.state !== 'open') return;
 
-    const replyText = await this.generateReply(
-      event.orgId,
-      conversation.id,
-      inboundText,
-      event.content.kind === 'audio',
-    );
+    const replyText = voiceNotUnderstood
+      ? 'Maaf kijiye, main apki voice samajh nahi paa raha. Kia ap text message kar denge?'
+      : await this.generateReply(
+          event.orgId,
+          conversation.id,
+          inboundText,
+          event.content.kind === 'audio',
+        );
     const [reply] = await db
       .insert(messages)
       .values({
@@ -410,7 +413,7 @@ export class AutoReplyService implements OnModuleInit, OnModuleDestroy {
 }
 
 type AiProvider = {
-  name: 'groq' | 'openai';
+  name: 'groq';
   apiKey: string;
   baseUrl: string;
   model: string;
@@ -423,7 +426,7 @@ type ConversationTurn = {
 };
 
 type TranscriptionProvider = {
-  name: 'groq' | 'openai';
+  name: 'groq';
   apiKey: string;
   baseUrl: string;
   model: string;
@@ -433,30 +436,22 @@ type TranscriptionProvider = {
 
 function getAiProvider(config: ConfigService): AiProvider | null {
   const groqKey = getEnvValue(config, 'GROQ_API_KEY');
-  if (groqKey) {
-    return {
-      name: 'groq',
-      apiKey: groqKey,
-      baseUrl:
-        getEnvValue(config, 'GROQ_BASE_URL') || 'https://api.groq.com/openai/v1',
-      model:
-        getEnvValue(config, 'GROQ_MODEL') || 'llama-3.3-70b-versatile',
-    };
-  }
-
-  const openAiKey = getEnvValue(config, 'OPENAI_API_KEY');
-  if (!openAiKey) return null;
+  if (!groqKey) return null;
   return {
-    name: 'openai',
-    apiKey: openAiKey,
-    baseUrl: getEnvValue(config, 'OPENAI_BASE_URL') || 'https://api.openai.com/v1',
-    model: getEnvValue(config, 'OPENAI_MODEL') || 'gpt-4o-mini',
+    name: 'groq',
+    apiKey: groqKey,
+    baseUrl:
+      getEnvValue(config, 'GROQ_BASE_URL') || 'https://api.groq.com/openai/v1',
+    model:
+      getEnvValue(config, 'GROQ_MODEL') || 'llama-3.3-70b-versatile',
   };
 }
 
 function getTranscriptionProviders(config: ConfigService): TranscriptionProvider[] {
   const providers: TranscriptionProvider[] = [];
-  const groqKey = getEnvValue(config, 'GROQ_API_KEY');
+  const groqKey =
+    getEnvValue(config, 'GROQ_TRANSCRIPTION_API_KEY') ||
+    getEnvValue(config, 'GROQ_API_KEY');
   if (groqKey) {
     const provider: TranscriptionProvider = {
       name: 'groq',
@@ -468,20 +463,6 @@ function getTranscriptionProviders(config: ConfigService): TranscriptionProvider
       task: getTranscriptionTask(config, 'GROQ_TRANSCRIPTION_TASK'),
     };
     const language = getEnvValue(config, 'GROQ_TRANSCRIPTION_LANGUAGE');
-    if (language) provider.language = language;
-    providers.push(provider);
-  }
-
-  const openAiKey = getEnvValue(config, 'OPENAI_API_KEY');
-  if (!groqKey && openAiKey) {
-    const provider: TranscriptionProvider = {
-      name: 'openai',
-      apiKey: openAiKey,
-      baseUrl: getEnvValue(config, 'OPENAI_BASE_URL') || 'https://api.openai.com/v1',
-      model: getEnvValue(config, 'OPENAI_TRANSCRIPTION_MODEL') || 'whisper-1',
-      task: getTranscriptionTask(config, 'OPENAI_TRANSCRIPTION_TASK'),
-    };
-    const language = getEnvValue(config, 'OPENAI_TRANSCRIPTION_LANGUAGE');
     if (language) provider.language = language;
     providers.push(provider);
   }

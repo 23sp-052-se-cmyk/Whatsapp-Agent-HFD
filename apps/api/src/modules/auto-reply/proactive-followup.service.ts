@@ -238,20 +238,11 @@ function countConsecutiveOutbound(
 
 function getAiProvider(config: ConfigService): AiProvider | null {
   const groqKey = config.get<string>('GROQ_API_KEY')?.trim();
-  if (groqKey) {
-    return {
-      apiKey: groqKey,
-      baseUrl: config.get<string>('GROQ_BASE_URL') || 'https://api.groq.com/openai/v1',
-      model: config.get<string>('GROQ_MODEL') || 'llama-3.3-70b-versatile',
-    };
-  }
-
-  const openAiKey = config.get<string>('OPENAI_API_KEY')?.trim();
-  if (!openAiKey) return null;
+  if (!groqKey) return null;
   return {
-    apiKey: openAiKey,
-    baseUrl: config.get<string>('OPENAI_BASE_URL') || 'https://api.openai.com/v1',
-    model: config.get<string>('OPENAI_MODEL') || 'gpt-4o-mini',
+    apiKey: groqKey,
+    baseUrl: config.get<string>('GROQ_BASE_URL') || 'https://api.groq.com/openai/v1',
+    model: config.get<string>('GROQ_MODEL') || 'llama-3.3-70b-versatile',
   };
 }
 
