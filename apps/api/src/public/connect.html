@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connect WhatsApp</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e1e4e8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2d3048;
+      border-radius: 16px;
+      padding: 40px;
+      width: 420px;
+      text-align: center;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    }
+
+    .logo { font-size: 32px; margin-bottom: 8px; }
+
+    h1 { font-size: 22px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+    .subtitle { font-size: 14px; color: #8b949e; margin-bottom: 32px; }
+
+    /* ── QR box ── */
+    #qr-box {
+      width: 256px;
+      height: 256px;
+      margin: 0 auto 24px;
+      border-radius: 12px;
+      border: 2px solid #2d3048;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      position: relative;
+    }
+
+    #qr-box canvas { display: block; }
+
+    .placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      color: #888;
+      font-size: 13px;
+    }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #2d3048;
+      border-top-color: #25d366;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Status badge ── */
+    #status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 24px;
+      transition: all 0.3s;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    .status-waiting  { background: #1e2d3d; color: #5fa8d3; }
+    .status-waiting .dot  { background: #5fa8d3; }
+    .status-scanning { background: #1e2d3d; color: #f0c040; animation: pulse 1s infinite; }
+    .status-scanning .dot { background: #f0c040; }
+    .status-connected { background: #0d2818; color: #25d366; }
+    .status-connected .dot { background: #25d366; }
+    .status-expired  { background: #2d1a1a; color: #f85149; }
+    .status-expired .dot  { background: #f85149; }
+    @keyframes pulse { 50% { opacity: 0.6; } }
+
+    /* ── Steps ── */
+    .steps { text-align: left; margin-bottom: 24px; }
+    .steps h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #6e7681; margin-bottom: 12px; }
+    .step { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; font-size: 13px; color: #8b949e; }
+    .step-num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: #2d3048; color: #cdd9e5; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+
+    /* ── Buttons ── */
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 20px;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+
+    #btn-retry {
+      background: #25d366;
+      color: #000;
+      width: 100%;
+      margin-top: 8px;
+      display: none;
+    }
+
+    /* ── Channel picker ── */
+    #picker {
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    label { font-size: 13px; color: #8b949e; text-align: left; display: block; margin-bottom: 4px; }
+    input, select {
+      width: 100%;
+      padding: 10px 14px;
+      background: #0f1117;
+      border: 1px solid #2d3048;
+      border-radius: 8px;
+      color: #e1e4e8;
+      font-size: 14px;
+    }
+    input:focus, select:focus { outline: 2px solid #25d366; border-color: transparent; }
+    #btn-start { background: #25d366; color: #000; width: 100%; }
+    #btn-start:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .hidden { display: none !important; }
+
+    /* ── Success overlay ── */
+    #success-overlay {
+      position: absolute; inset: 0;
+      background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 8px;
+      font-size: 14px; color: #1a7340; font-weight: 600;
+    }
+    .check { font-size: 48px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">📱</div>
+  <h1>Connect WhatsApp</h1>
+  <p class="subtitle">Link your WhatsApp number to the AI platform</p>
+
+  <!-- Channel picker (shown before pairing starts) -->
+  <div id="picker">
+    <div>
+      <label for="channel-id-input">Channel ID (UUID)</label>
+      <input id="channel-id-input" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+    </div>
+    <button id="btn-start" disabled>Scan QR Code</button>
+  </div>
+
+  <!-- Status badge (shown during/after pairing) -->
+  <div id="status-badge" class="status-waiting hidden">
+    <span class="dot"></span>
+    <span id="status-text">Initialising…</span>
+  </div>
+
+  <!-- QR canvas -->
+  <div id="qr-box" class="hidden">
+    <div class="placeholder" id="placeholder">
+      <div class="spinner"></div>
+      <span>Generating QR…</span>
+    </div>
+    <canvas id="qr-canvas" style="display:none"></canvas>
+    <div id="success-overlay" style="display:none">
+      <span class="check">✅</span>
+      Connected!
+    </div>
+  </div>
+
+  <!-- Scan instructions -->
+  <div class="steps hidden" id="scan-steps">
+    <h3>How to scan</h3>
+    <div class="step"><span class="step-num">1</span><span>Open WhatsApp on your phone</span></div>
+    <div class="step"><span class="step-num">2</span><span>Tap <strong>⋮ Menu → Linked Devices</strong></span></div>
+    <div class="step"><span class="step-num">3</span><span>Tap <strong>Link a Device</strong> and scan this QR</span></div>
+  </div>
+
+  <!-- Countdown -->
+  <p id="countdown" class="hidden" style="font-size:12px;color:#6e7681;margin-bottom:16px"></p>
+
+  <!-- Retry button (shown after expiry) -->
+  <button id="btn-retry">↺ Generate new QR</button>
+</div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+
+  const inputEl     = $('channel-id-input');
+  const btnStart    = $('btn-start');
+  const btnRetry    = $('btn-retry');
+  const picker      = $('picker');
+  const statusBadge = $('status-badge');
+  const statusText  = $('status-text');
+  const qrBox       = $('qr-box');
+  const placeholder = $('placeholder');
+  const qrCanvas    = $('qr-canvas');
+  const successOv   = $('success-overlay');
+  const scanSteps   = $('scan-steps');
+  const countdown   = $('countdown');
+
+  let channelId = '';
+  let es = null;
+  let countdownTimer = null;
+  let secondsLeft = 90;
+
+  // ── Validate UUID on input ──────────────────────────────────────────────
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  inputEl.addEventListener('input', () => {
+    btnStart.disabled = !UUID_RE.test(inputEl.value.trim());
+  });
+
+  // Pre-fill from query param ?channelId=...
+  const qp = new URLSearchParams(location.search);
+  if (qp.has('channelId')) {
+    inputEl.value = qp.get('channelId');
+    btnStart.disabled = false;
+  }
+
+  // ── UI state helpers ────────────────────────────────────────────────────
+  function setStatus(cls, text) {
+    statusBadge.className = 'status-' + cls;
+    statusText.textContent = text;
+    statusBadge.classList.remove('hidden');
+  }
+
+  function showQrBox() {
+    qrBox.classList.remove('hidden');
+    scanSteps.classList.remove('hidden');
+  }
+
+  function renderQr(qrString) {
+    placeholder.style.display = 'none';
+    successOv.style.display   = 'none';
+    qrCanvas.style.display    = 'block';
+    QRCode.toCanvas(qrCanvas, qrString, { width: 252, margin: 0 }, (err) => {
+      if (err) console.error('QR render error', err);
+    });
+  }
+
+  function startCountdown() {
+    secondsLeft = 90;
+    countdown.classList.remove('hidden');
+    clearInterval(countdownTimer);
+    countdownTimer = setInterval(() => {
+      secondsLeft--;
+      countdown.textContent = `QR expires in ${secondsLeft}s`;
+      if (secondsLeft <= 0) clearInterval(countdownTimer);
+    }, 1000);
+  }
+
+  function stopCountdown() {
+    clearInterval(countdownTimer);
+    countdown.classList.add('hidden');
+  }
+
+  // ── SSE stream ──────────────────────────────────────────────────────────
+  function startStream(cid) {
+    if (es) { es.close(); es = null; }
+
+    channelId = cid;
+    picker.classList.add('hidden');
+    showQrBox();
+    placeholder.style.display = 'flex';
+    qrCanvas.style.display = 'none';
+    successOv.style.display = 'none';
+    btnRetry.style.display = 'none';
+    setStatus('waiting', 'Initialising…');
+
+    es = new EventSource(`/channels/${channelId}/qr-stream`);
+
+    es.addEventListener('qr', (e) => {
+      const { qr } = JSON.parse(e.data);
+      renderQr(qr);
+      setStatus('scanning', 'Waiting for scan…');
+      startCountdown();
+    });
+
+    es.addEventListener('connected', () => {
+      es.close(); es = null;
+      stopCountdown();
+      qrCanvas.style.display = 'none';
+      successOv.style.display = 'flex';
+      setStatus('connected', 'Connected ✓');
+      scanSteps.classList.add('hidden');
+    });
+
+    es.addEventListener('expired', () => {
+      es.close(); es = null;
+      stopCountdown();
+      qrCanvas.style.display = 'none';
+      placeholder.innerHTML = '<span style="font-size:32px">⏱</span><span style="color:#888;font-size:13px">QR expired</span>';
+      placeholder.style.display = 'flex';
+      setStatus('expired', 'QR expired — retry');
+      btnRetry.style.display = 'block';
+    });
+
+    es.addEventListener('disconnected', (e) => {
+      es.close(); es = null;
+      stopCountdown();
+      const { reason } = JSON.parse(e.data);
+      setStatus('expired', `Disconnected: ${reason}`);
+      btnRetry.style.display = 'block';
+    });
+
+    es.onerror = () => {
+      if (es?.readyState === EventSource.CLOSED) return;
+      setStatus('expired', 'Connection lost');
+      stopCountdown();
+      btnRetry.style.display = 'block';
+    };
+  }
+
+  // ── Button handlers ─────────────────────────────────────────────────────
+  btnStart.addEventListener('click', () => {
+    startStream(inputEl.value.trim());
+  });
+
+  btnRetry.addEventListener('click', () => {
+    btnRetry.style.display = 'none';
+    placeholder.innerHTML = '<div class="spinner"></div><span>Generating QR…</span>';
+    startStream(channelId);
+  });
+})();
+</script>
+</body>
+</html>

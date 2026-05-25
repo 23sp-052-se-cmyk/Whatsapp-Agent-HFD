@@ -1,0 +1,27 @@
+{
+  "private": true,
+  "name": "whatsapp-bot-v2",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "db:migrate": "pnpm --filter @repo/db run migrate",
+    "db:generate": "pnpm --filter @repo/db run generate",
+    "dev": "pnpm -r --parallel dev",
+    "dev:api": "pnpm --filter @repo/api run dev",
+    "dev:web": "pnpm --filter @repo/web run dev",
+    "dev:channel": "pnpm --filter @repo/channel run dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "drizzle-orm": "0.36.4"
+    },
+    "peerDependencyRules": {
+      "ignoreMissing": ["@opentelemetry/api"]
+    }
+  }
+}

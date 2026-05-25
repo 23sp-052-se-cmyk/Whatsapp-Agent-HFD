@@ -1,0 +1,14 @@
+services:
+  evolution-api:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: wa_evolution_api
+    restart: unless-stopped
+    env_file:
+      - .env.evolution
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+
+volumes:
+  evolution_instances:

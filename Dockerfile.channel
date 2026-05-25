@@ -1,0 +1,28 @@
+FROM node:20-slim
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+WORKDIR /app
+
+# Install deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/db/package.json ./packages/db/
+COPY services/channel/package.json ./services/channel/
+RUN pnpm install --frozen-lockfile
+
+# Copy and build
+COPY packages/shared ./packages/shared
+COPY packages/db ./packages/db
+COPY services/channel ./services/channel
+RUN pnpm --filter @repo/shared build
+RUN pnpm --filter @repo/db build
+RUN pnpm --filter @repo/channel build
+
+ENV NODE_ENV=production
+# Railway volume: mount a persistent disk at /data/sessions in the service settings
+ENV SESSION_DIR=/data/sessions
+VOLUME ["/data/sessions"]
+
+CMD ["node", "services/channel/dist/index.js"]

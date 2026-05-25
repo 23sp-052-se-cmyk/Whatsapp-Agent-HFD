@@ -1,0 +1,30 @@
+node_modules/
+dist/
+.env
+.env.evolution
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Build artefacts
+*.tsbuildinfo
+*.js.map
+
+# Drizzle generated migrations (keep the folder, ignore nothing — migrations are committed)
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes (local data)
+postgres_data/
+redis_data/
+minio_data/
+
+# Secrets (never commit)
+*.pem
+*.key

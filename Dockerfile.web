@@ -1,0 +1,23 @@
+FROM node:20-slim
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+WORKDIR /app
+
+# Install deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/web/package.json ./apps/web/
+RUN pnpm install --frozen-lockfile
+
+# Bake public API URL into Next.js bundle at build time
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+
+COPY apps/web ./apps/web
+RUN pnpm --filter web build
+
+ENV NODE_ENV=production
+EXPOSE 3000
+
+CMD ["pnpm", "--filter", "web", "start"]
