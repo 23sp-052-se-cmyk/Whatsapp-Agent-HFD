@@ -15,7 +15,8 @@ __pycache__/
 *.js.map
 
 # Drizzle generated migrations (keep the folder, ignore nothing — migrations are committed)
-
+.sessions/
+services/channel/.sessions/
 # OS
 .DS_Store
 Thumbs.db
